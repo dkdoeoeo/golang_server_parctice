@@ -18,6 +18,7 @@ type User struct {
 	Nickname      string             `bson:"nickname"`
 	Profile_image string             `bson:"profile_image"`
 	Type          string             `bson:"type"`
+	Access_token  string             `bson:"access_token"`
 	Password      string             `bson:"password"`
 }
 

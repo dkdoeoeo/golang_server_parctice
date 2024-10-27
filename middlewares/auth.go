@@ -1,13 +1,6 @@
 package middlewares
 
-import (
-	"fmt"
-	"net/http"
-	"post-platform/helper"
-
-	"github.com/gin-gonic/gin"
-)
-
+/*
 func AuthCheck() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		headers := c.Request.Header
@@ -25,4 +18,4 @@ func AuthCheck() gin.HandlerFunc {
 		c.Set("user_claims", userClaims)
 		c.Next()
 	}
-}
+}*/

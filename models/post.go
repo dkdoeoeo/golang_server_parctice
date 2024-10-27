@@ -2,10 +2,13 @@ package models
 
 import (
 	"context"
+	"fmt"
 	"log"
 
+	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -37,16 +40,17 @@ type postResponse struct {
 	Type          string   `bson:"type"`
 	Tags          []string `bson:"tags"`
 	Location_name string   `bson:"location_name"`
-	Liked         bool     `bson:"liked"`
+	Liked         *bool    `bson:"liked"`
 	Updated_at    string   `bson:"updated_at"`
 	Created_at    string   `bson:"created_at"`
 }
 
-func Return_public_post(order_by, order_type, content string, tags []string) ([]postResponse, int, error) {
+func Return_public_post(c *gin.Context, order_by, order_type, content string, tags []string, location_name string) ([]postResponse, int, error) {
 
 	var sortOrder bson.D
+	//取type=public的post
 	filter := bson.M{"type": "public"}
-
+	//設置排序
 	switch order_by {
 	case "created_at":
 		switch order_type {
@@ -76,15 +80,20 @@ func Return_public_post(order_by, order_type, content string, tags []string) ([]
 			sortOrder = bson.D{{"created_at", -1}} // 默認創建時間降序
 		}
 	}
-
+	//篩選含有content的post
 	if content != "" {
 		filter["content"] = bson.M{"$regex": content, "$options": "i"}
 	}
-
+	//篩選含有tags的post
 	if len(tags) > 0 {
 		filter["tags"] = bson.M{"$all": tags}
 	}
+	//篩選含有location_name的post
+	if location_name != "" {
+		filter["location_name"] = bson.M{"$regex": location_name, "$options": "i"}
+	}
 
+	//根據條件篩選post
 	collection := Mongo.Collection("post")
 	cursor, err := collection.Find(context.Background(), filter, options.Find().SetSort(sortOrder))
 	if err != nil {
@@ -95,7 +104,7 @@ func Return_public_post(order_by, order_type, content string, tags []string) ([]
 
 	var posts []Post
 	totalCount := 0
-
+	//將篩選出的post解碼到posts
 	for cursor.Next(context.Background()) {
 		var post Post
 		err := cursor.Decode(&post)
@@ -107,8 +116,9 @@ func Return_public_post(order_by, order_type, content string, tags []string) ([]
 		totalCount++
 	}
 
+	tokenString := c.GetHeader("Authorization")
 	var postResponses []postResponse
-
+	//將posts轉成postResponses
 	for _, post := range posts {
 		var author User
 		UserCollection := Mongo.Collection("user")
@@ -128,19 +138,48 @@ func Return_public_post(order_by, order_type, content string, tags []string) ([]
 			images = append(images, img)
 		}
 
-		postResponses = append(postResponses, postResponse{
+		tmpPostResponse := postResponse{
 			Id:            post.Id,
-			Author:        author, // 赋值查循到的用户
-			Images:        images,
+			Author:        author, // 赋值查循到的user
+			Images:        images, //赋值查循到的用image
 			Like_count:    post.Like_count,
 			Content:       post.Content,
 			Type:          post.Type,
 			Tags:          post.Tags,
 			Location_name: post.Location_name,
-			Liked:         post.Liked,
 			Updated_at:    post.Updated_at,
 			Created_at:    post.Created_at,
-		})
+		}
+
+		if isUserLoggedIn(tokenString) {
+			tmpPostResponse.Liked = &post.Liked
+		} else {
+			tmpPostResponse.Liked = nil
+		}
+
+		postResponses = append(postResponses, tmpPostResponse)
 	}
 	return postResponses, totalCount, nil
+}
+
+func isUserLoggedIn(hashedEmail string) bool {
+	hashedEmail = hashedEmail[len("Bearer "):]
+	var user struct {
+		Email string `bson:"email"`
+	}
+	filter := bson.M{"access_token": hashedEmail}
+	UserCollection := Mongo.Collection("user")
+	err := UserCollection.FindOne(context.TODO(), filter).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			fmt.Println("沒找到用戶，未登入:", err)
+			return false
+		}
+		// 其他錯誤處理
+		fmt.Println("Error querying user:", err)
+		return false
+	}
+
+	// 返回 true 表示用戶存在
+	return true
 }

@@ -107,6 +107,9 @@ func Register(c *gin.Context) {
 		})
 		return
 	}
+	var access_token string
+	var err error
+	access_token, err = helper.GenerateAccessToken(email)
 
 	user := models.User{
 		Id:            models.GetNextSequence("userId"),
@@ -114,10 +117,11 @@ func Register(c *gin.Context) {
 		Nickname:      nickname,
 		Profile_image: profile_image,
 		Type:          "USER",
+		Access_token:  access_token,
 		Password:      password,
 	}
 
-	err := models.InsertUser(user)
+	err = models.InsertUser(user)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"code": -1,

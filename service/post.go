@@ -13,12 +13,12 @@ func Get_public_post(c *gin.Context) {
 	order_type := c.PostForm("order_type")
 	content := c.PostForm("content")
 	tags := c.PostFormArray("tag")
+	location_name := c.PostForm("location_name")
 	/*
-		location_name := c.PostForm("location_name")
 		page := c.PostForm("page ")
 		page_size := c.PostForm("page_size")
 	*/
-	postResponses, total_Count, err := models.Return_public_post(order_by, order_type, content, tags)
+	postResponses, total_Count, err := models.Return_public_post(c, order_by, order_type, content, tags, location_name)
 	if err != nil {
 		log.Println("Return_public_post錯誤:", err)
 		return
