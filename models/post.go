@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -221,4 +222,78 @@ func IsUserAuthorized(PostResponse postResponse, access_token string) bool {
 		return true
 	}
 	return false
+}
+
+func Publish_post(c *gin.Context, Images []string, Type string, tags []string, content, location_name string) (*Post, error) {
+	var images []Image
+	var ImagesDBref []DBRef
+	for _, url := range Images {
+		images = append(images, get_images_by_urls(url))
+	}
+	for _, image := range images {
+		tmpDBRef := DBRef{
+			Ref: "image",
+			ID:  image.ID,
+		}
+		ImagesDBref = append(ImagesDBref, tmpDBRef)
+	}
+	tokenString := c.GetHeader("Authorization")
+	author, err := GetUserByAccess_token(tokenString)
+	if err != nil {
+		log.Println("GetUserByAccess_token錯誤:", err)
+		return nil, err
+	}
+	currentTime := time.Now()
+	timeString := currentTime.Format("2006-01-02 15:04:05")
+	post := Post{
+		Id: GetNextSequence("postId"),
+		Author: DBRef{
+			Ref: "user",
+			ID:  author.ID,
+		},
+		Images:        ImagesDBref,
+		Like_count:    0,
+		Content:       content,
+		Type:          Type,
+		Tags:          tags,
+		Location_name: location_name,
+		Liked:         false,
+		Updated_at:    timeString,
+		Created_at:    timeString,
+	}
+	err = InsertPost(post)
+	if err != nil {
+		log.Println("InsertPost錯誤:", err)
+	}
+	return &post, err
+}
+
+func get_images_by_urls(url string) Image {
+	currentTime := time.Now()
+	timeString := currentTime.Format("2006-01-02 15:04:05")
+	fmt.Println("當前時間:", timeString)
+	image := Image{
+		Id:         GetNextSequence("imageId"),
+		Url:        url,
+		Width:      10,
+		Height:     10,
+		Created_at: timeString,
+	}
+	err := InsertImage(image)
+	if err != nil {
+		fmt.Println("插入image錯誤:", err)
+	}
+	return image
+}
+
+func InsertPost(post Post) error {
+	collection := Mongo.Collection("post")
+
+	result, err := collection.InsertOne(context.Background(), post)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Inserted document ID:", result.InsertedID)
+	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"post-platform/models"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -69,49 +70,64 @@ func View_post(c *gin.Context) {
 }
 
 func Publish_post(c *gin.Context) {
-	/*
-		Images := c.PostFormArray("image")
-		Type := c.PostForm("type")
-		tagsStr := c.PostForm("tags")
-		content := c.PostForm("content")
-		location_name := c.PostForm("location_name")
+	Images := c.PostFormArray("image")
+	Type := c.PostForm("type")
+	tagsStr := c.PostForm("tags")
+	content := c.PostForm("content")
+	location_name := c.PostForm("location_name")
 
-		if len(Images) == 0 {
+	if len(Images) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "Images不可空白",
+		})
+		return
+	}
+
+	for _, image := range Images {
+		if !models.IsValidImage(image) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "Images不可空白",
+				"message": "Images檔案格式錯誤",
 			})
 			return
 		}
+	}
 
-		for _, image := range Images {
-			if !models.IsValidImage(image) {
-				c.JSON(http.StatusOK, gin.H{
-					"success": false,
-					"message": "Images檔案格式錯誤",
-				})
-				return
-			}
-		}
+	if Type != "public" && Type != "only_follow" && Type != "only_self" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "Type錯誤",
+		})
+		return
+	}
 
-		if Type != "public" && Type != "only_follow" && Type != "only_self" {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "Type錯誤",
-			})
-			return
-		}
+	var tags []string
+	if tagsStr != "" {
+		tags = strings.Fields(tagsStr) // 將字串根據空白分隔成標籤切片
+	}
 
-		var tags []string
-		if tagsStr != "" {
-			tags = strings.Fields(tagsStr) // 將字串根據空白分隔成標籤切片
-		}
+	if content == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "content不可空白",
+		})
+		return
+	}
 
-		if content == "" {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "content不可空白",
-			})
-			return
-		}*/
+	post, err := models.Publish_post(c, Images, Type, tags, content, location_name)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "發布貼文錯誤",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": false,
+		"message": "",
+		"data":    post,
+	})
+	return
 }
