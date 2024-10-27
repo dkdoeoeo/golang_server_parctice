@@ -7,16 +7,18 @@ import (
 	"regexp"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type User struct {
-	Id            int    `bson:"id"`
-	Email         string `bson:"email"`
-	Nickname      string `bson:"nickname"`
-	Profile_image string `bson:"profile_image"`
-	Type          string `bson:"type"`
-	Password      string `bson:"password"`
+	ID            primitive.ObjectID `bson:"_id"`
+	Id            int                `bson:"id"`
+	Email         string             `bson:"email"`
+	Nickname      string             `bson:"nickname"`
+	Profile_image string             `bson:"profile_image"`
+	Type          string             `bson:"type"`
+	Password      string             `bson:"password"`
 }
 
 func GetUserByEmailPassword(email, password string) (*User, error) {
