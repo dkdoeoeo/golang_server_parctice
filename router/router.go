@@ -18,9 +18,8 @@ func Router() *gin.Engine {
 
 	r.GET("/api/post/public", service.Get_public_post)
 
-	//auth := r.Group("/u", middlewares.AuthCheck())
+	r.GET("/api/post/:post_id", service.View_post)
 
-	//用戶詳情
-	//auth.GET("/api/user/:user_id/profile", service.UserProfile)
+	r.GET("/api/post", service.Publish_post)
 	return r
 }

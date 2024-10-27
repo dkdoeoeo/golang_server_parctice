@@ -89,3 +89,14 @@ func IsEmailUnique(email string) bool {
 		return false
 	}
 }
+
+func GetUserByAccess_token(access_token string) (*User, error) {
+	access_token = access_token[len("Bearer "):]
+	user := new(User)
+	err := Mongo.Collection("user").FindOne(context.Background(), bson.D{{"access_token", access_token}}).Decode(user)
+	if err != nil {
+		log.Println("Error finding user:", err)
+		log.Println("access_token:", access_token)
+	}
+	return user, err
+}

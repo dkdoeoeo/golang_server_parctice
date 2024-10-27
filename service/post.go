@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"post-platform/models"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,4 +32,86 @@ func Get_public_post(c *gin.Context) {
 			"posts":       postResponses,
 		},
 	})
+}
+
+func View_post(c *gin.Context) {
+	postIDStr := c.Param("post_id")
+	postID, err := strconv.Atoi(postIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的 post_id"})
+		return
+	}
+	postResponse, err := models.GetPostById(c, postID)
+	if err != nil {
+		log.Println("GetPostById錯誤:", err)
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "GetPostById錯誤",
+		})
+		return
+	}
+	if models.IsUserAuthorized(*postResponse, c.GetHeader("Authorization")) {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "",
+			"data": gin.H{
+				"post": postResponse,
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusForbidden, gin.H{
+		"success": false,
+		"message": "權限不足",
+	})
+	return
+}
+
+func Publish_post(c *gin.Context) {
+	/*
+		Images := c.PostFormArray("image")
+		Type := c.PostForm("type")
+		tagsStr := c.PostForm("tags")
+		content := c.PostForm("content")
+		location_name := c.PostForm("location_name")
+
+		if len(Images) == 0 {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "Images不可空白",
+			})
+			return
+		}
+
+		for _, image := range Images {
+			if !models.IsValidImage(image) {
+				c.JSON(http.StatusOK, gin.H{
+					"success": false,
+					"message": "Images檔案格式錯誤",
+				})
+				return
+			}
+		}
+
+		if Type != "public" && Type != "only_follow" && Type != "only_self" {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "Type錯誤",
+			})
+			return
+		}
+
+		var tags []string
+		if tagsStr != "" {
+			tags = strings.Fields(tagsStr) // 將字串根據空白分隔成標籤切片
+		}
+
+		if content == "" {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "content不可空白",
+			})
+			return
+		}*/
 }

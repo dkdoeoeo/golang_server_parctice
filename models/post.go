@@ -116,53 +116,24 @@ func Return_public_post(c *gin.Context, order_by, order_type, content string, ta
 		totalCount++
 	}
 
-	tokenString := c.GetHeader("Authorization")
 	var postResponses []postResponse
 	//將posts轉成postResponses
 	for _, post := range posts {
-		var author User
-		UserCollection := Mongo.Collection("user")
-		err := UserCollection.FindOne(context.Background(), bson.M{"_id": post.Author.ID}).Decode(&author)
+		tmpPostResponse := new(postResponse)
+		tmpPostResponse, err = Convert_Post_To_postResponse(c, post)
 		if err != nil {
-			return nil, 0, err
+			log.Println("轉換錯誤", err)
 		}
-
-		var images []Image
-		for _, imgRef := range post.Images {
-			var img Image
-			ImageCollection := Mongo.Collection("image")
-			err := ImageCollection.FindOne(context.Background(), bson.M{"_id": imgRef.ID}).Decode(&img)
-			if err != nil {
-				return nil, 0, err
-			}
-			images = append(images, img)
-		}
-
-		tmpPostResponse := postResponse{
-			Id:            post.Id,
-			Author:        author, // 赋值查循到的user
-			Images:        images, //赋值查循到的用image
-			Like_count:    post.Like_count,
-			Content:       post.Content,
-			Type:          post.Type,
-			Tags:          post.Tags,
-			Location_name: post.Location_name,
-			Updated_at:    post.Updated_at,
-			Created_at:    post.Created_at,
-		}
-
-		if isUserLoggedIn(tokenString) {
-			tmpPostResponse.Liked = &post.Liked
-		} else {
-			tmpPostResponse.Liked = nil
-		}
-
-		postResponses = append(postResponses, tmpPostResponse)
+		postResponses = append(postResponses, *tmpPostResponse)
 	}
 	return postResponses, totalCount, nil
 }
 
 func isUserLoggedIn(hashedEmail string) bool {
+	if hashedEmail == "" {
+		return false
+	}
+
 	hashedEmail = hashedEmail[len("Bearer "):]
 	var user struct {
 		Email string `bson:"email"`
@@ -182,4 +153,72 @@ func isUserLoggedIn(hashedEmail string) bool {
 
 	// 返回 true 表示用戶存在
 	return true
+}
+
+func GetPostById(c *gin.Context, post_id int) (*postResponse, error) {
+	post := new(Post)
+	err := Mongo.Collection("post").FindOne(context.Background(), bson.D{{"id", post_id}}).Decode(post)
+	if err != nil {
+		log.Println("找不到貼文", err)
+		return nil, err
+	}
+	tmpPostResponse := new(postResponse)
+	tmpPostResponse, err = Convert_Post_To_postResponse(c, *post)
+	if err != nil {
+		log.Println("轉換錯誤", err)
+	}
+	return tmpPostResponse, err
+}
+
+func Convert_Post_To_postResponse(c *gin.Context, post Post) (*postResponse, error) {
+	var author User
+	UserCollection := Mongo.Collection("user")
+	err := UserCollection.FindOne(context.Background(), bson.M{"_id": post.Author.ID}).Decode(&author)
+	if err != nil {
+		return nil, err
+	}
+
+	var images []Image
+	for _, imgRef := range post.Images {
+		var img Image
+		ImageCollection := Mongo.Collection("image")
+		err := ImageCollection.FindOne(context.Background(), bson.M{"_id": imgRef.ID}).Decode(&img)
+		if err != nil {
+			return nil, err
+		}
+		images = append(images, img)
+	}
+
+	tmpPostResponse := postResponse{
+		Id:            post.Id,
+		Author:        author, // 赋值查循到的user
+		Images:        images, //赋值查循到的用image
+		Like_count:    post.Like_count,
+		Content:       post.Content,
+		Type:          post.Type,
+		Tags:          post.Tags,
+		Location_name: post.Location_name,
+		Updated_at:    post.Updated_at,
+		Created_at:    post.Created_at,
+	}
+
+	tokenString := c.GetHeader("Authorization")
+	if isUserLoggedIn(tokenString) {
+		tmpPostResponse.Liked = &post.Liked
+	} else {
+		tmpPostResponse.Liked = nil
+	}
+	return &tmpPostResponse, err
+}
+
+func IsUserAuthorized(PostResponse postResponse, access_token string) bool {
+	curUser, err := GetUserByAccess_token(access_token)
+	if err != nil {
+		log.Println("GetUserByAccess_token錯誤:", err)
+	}
+
+	if PostResponse.Type == "public" || PostResponse.Author == *curUser {
+		return true
+	}
+	return false
 }
