@@ -173,9 +173,33 @@ func Adjust_post(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": false,
+		"success": true,
 		"message": "",
 		"data":    newPost,
+	})
+	return
+}
+
+func Delete_post(c *gin.Context) {
+	postIDStr := c.Param("post_id")
+	postID, err := strconv.Atoi(postIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的 post_id"})
+		return
+	}
+	err = models.Delete_post(c, postID)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "刪除貼文錯誤",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    "",
 	})
 	return
 }

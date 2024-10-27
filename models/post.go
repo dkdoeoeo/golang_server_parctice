@@ -339,3 +339,26 @@ func Adjust_post(c *gin.Context, post_id int, Type string, tags []string, conten
 
 	return &updatedPost, nil
 }
+
+func Delete_post(c *gin.Context, post_id int) error {
+	tmp, err := GetPostById(c, post_id)
+	if err != nil {
+		fmt.Println("查詢更新貼文失敗:", err)
+		return err
+	}
+	tokenString := c.GetHeader("Authorization")
+	tokenString = tokenString[len("Bearer "):]
+	if tmp.Author.Access_token != tokenString {
+		fmt.Println("非貼文作者:", err)
+		return err
+	}
+
+	collection := Mongo.Collection("post")
+	filter := bson.M{"id": post_id}
+	deleteResult, err := collection.DeleteOne(context.Background(), filter)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Matched %v documents and Deleted %v documents.\n", deleteResult.DeletedCount, deleteResult.DeletedCount)
+	return err
+}
