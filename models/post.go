@@ -228,7 +228,7 @@ func Publish_post(c *gin.Context, Images []string, Type string, tags []string, c
 	var images []Image
 	var ImagesDBref []DBRef
 	for _, url := range Images {
-		images = append(images, get_images_by_urls(url))
+		images = append(images, add_images_by_urls(url))
 	}
 	for _, image := range images {
 		tmpDBRef := DBRef{
@@ -268,7 +268,7 @@ func Publish_post(c *gin.Context, Images []string, Type string, tags []string, c
 	return &post, err
 }
 
-func get_images_by_urls(url string) Image {
+func add_images_by_urls(url string) Image {
 	currentTime := time.Now()
 	timeString := currentTime.Format("2006-01-02 15:04:05")
 	fmt.Println("當前時間:", timeString)
@@ -296,4 +296,46 @@ func InsertPost(post Post) error {
 
 	fmt.Println("Inserted document ID:", result.InsertedID)
 	return nil
+}
+
+func Adjust_post(c *gin.Context, post_id int, Type string, tags []string, content string) (*Post, error) {
+	tmp, err := GetPostById(c, post_id)
+	if err != nil {
+		fmt.Println("查詢更新貼文失敗:", err)
+		return nil, err
+	}
+	tokenString := c.GetHeader("Authorization")
+	tokenString = tokenString[len("Bearer "):]
+	if tmp.Author.Access_token != tokenString {
+		fmt.Println("非貼文作者:", err)
+		return nil, err
+	}
+
+	var updatedPost Post
+	collection := Mongo.Collection("post")
+	filter := bson.M{"id": post_id}
+	currentTime := time.Now()
+	timeString := currentTime.Format("2006-01-02 15:04:05")
+	fmt.Println("當前時間:", timeString)
+	updatedFields := bson.M{
+		"type":       Type,
+		"tags":       tags,
+		"content":    content,
+		"updated_at": timeString,
+	}
+	update := bson.M{"$set": updatedFields}
+	updateResult, err := collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		fmt.Println("更新貼文失敗:", err)
+		return nil, err
+	}
+	fmt.Printf("Matched %v documents and updated %v documents.\n", updateResult.MatchedCount, updateResult.ModifiedCount)
+
+	err = collection.FindOne(context.Background(), filter).Decode(&updatedPost)
+	if err != nil {
+		fmt.Println("查詢更新貼文失敗:", err)
+		return nil, err
+	}
+
+	return &updatedPost, nil
 }

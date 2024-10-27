@@ -21,5 +21,7 @@ func Router() *gin.Engine {
 	r.GET("/api/post/:post_id", service.View_post)
 
 	r.POST("/api/post", service.Publish_post)
+
+	r.POST("/api/post/:post_id", service.Adjust_post)
 	return r
 }

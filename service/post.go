@@ -131,3 +131,51 @@ func Publish_post(c *gin.Context) {
 	})
 	return
 }
+
+func Adjust_post(c *gin.Context) {
+	postIDStr := c.Param("post_id")
+	postID, err := strconv.Atoi(postIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的 post_id"})
+		return
+	}
+	Type := c.PostForm("type")
+	tagsStr := c.PostForm("tags")
+	content := c.PostForm("content")
+	if Type != "public" && Type != "only_follow" && Type != "only_self" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "Type錯誤",
+		})
+		return
+	}
+
+	var tags []string
+	if tagsStr != "" {
+		tags = strings.Fields(tagsStr) // 將字串根據空白分隔成標籤切片
+	}
+
+	if content == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "content不可空白",
+		})
+		return
+	}
+
+	newPost, err := models.Adjust_post(c, postID, Type, tags, content)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "修改貼文錯誤",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": false,
+		"message": "",
+		"data":    newPost,
+	})
+	return
+}
