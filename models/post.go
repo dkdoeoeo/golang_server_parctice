@@ -142,6 +142,5 @@ func Return_public_post(order_by, order_type, content string, tags []string) ([]
 			Created_at:    post.Created_at,
 		})
 	}
-
 	return postResponses, totalCount, nil
 }
