@@ -20,6 +20,7 @@ type User struct {
 	Type          string             `bson:"type"`
 	Access_token  string             `bson:"access_token"`
 	Password      string             `bson:"password"`
+	Favorite      []Post             `bson:"favorite"`
 }
 
 func GetUserByEmailPassword(email, password string) (*User, error) {

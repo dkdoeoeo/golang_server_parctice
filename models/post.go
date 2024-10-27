@@ -13,15 +13,10 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type DBRef struct {
-	Ref string             `bson:"$ref"`
-	ID  primitive.ObjectID `bson:"$id"`
-}
-
 type Post struct {
 	Id            int      `bson:"id"`
-	Author        DBRef    `bson:"author"`
-	Images        []DBRef  `bson:"images"`
+	Author        User     `bson:"author"`
+	Images        []Image  `bson:"images"`
 	Like_count    int      `bson:"like_count"`
 	Content       string   `bson:"content"`
 	Type          string   `bson:"type"`
@@ -32,7 +27,7 @@ type Post struct {
 	Created_at    string   `bson:"created_at"`
 }
 
-type postResponse struct {
+type PostResponse struct {
 	Id            int      `bson:"id"`
 	Author        User     `bson:"author"`
 	Images        []Image  `bson:"images"`
@@ -46,7 +41,7 @@ type postResponse struct {
 	Created_at    string   `bson:"created_at"`
 }
 
-func Return_public_post(c *gin.Context, order_by, order_type, content string, tags []string, location_name string) ([]postResponse, int, error) {
+func Return_public_post(c *gin.Context, order_by, order_type, content string, tags []string, location_name string) ([]PostResponse, int, error) {
 
 	var sortOrder bson.D
 	//取type=public的post
@@ -117,10 +112,10 @@ func Return_public_post(c *gin.Context, order_by, order_type, content string, ta
 		totalCount++
 	}
 
-	var postResponses []postResponse
+	var postResponses []PostResponse
 	//將posts轉成postResponses
 	for _, post := range posts {
-		tmpPostResponse := new(postResponse)
+		tmpPostResponse := new(PostResponse)
 		tmpPostResponse, err = Convert_Post_To_postResponse(c, post)
 		if err != nil {
 			log.Println("轉換錯誤", err)
@@ -156,22 +151,17 @@ func isUserLoggedIn(hashedEmail string) bool {
 	return true
 }
 
-func GetPostById(c *gin.Context, post_id int) (*postResponse, error) {
+func GetPostById(c *gin.Context, post_id int) (*Post, error) {
 	post := new(Post)
 	err := Mongo.Collection("post").FindOne(context.Background(), bson.D{{"id", post_id}}).Decode(post)
 	if err != nil {
 		log.Println("找不到貼文", err)
 		return nil, err
 	}
-	tmpPostResponse := new(postResponse)
-	tmpPostResponse, err = Convert_Post_To_postResponse(c, *post)
-	if err != nil {
-		log.Println("轉換錯誤", err)
-	}
-	return tmpPostResponse, err
+	return post, err
 }
 
-func Convert_Post_To_postResponse(c *gin.Context, post Post) (*postResponse, error) {
+func Convert_Post_To_postResponse(c *gin.Context, post Post) (*PostResponse, error) {
 	var author User
 	UserCollection := Mongo.Collection("user")
 	err := UserCollection.FindOne(context.Background(), bson.M{"_id": post.Author.ID}).Decode(&author)
@@ -190,7 +180,7 @@ func Convert_Post_To_postResponse(c *gin.Context, post Post) (*postResponse, err
 		images = append(images, img)
 	}
 
-	tmpPostResponse := postResponse{
+	tmpPostResponse := PostResponse{
 		Id:            post.Id,
 		Author:        author, // 赋值查循到的user
 		Images:        images, //赋值查循到的用image
@@ -212,13 +202,13 @@ func Convert_Post_To_postResponse(c *gin.Context, post Post) (*postResponse, err
 	return &tmpPostResponse, err
 }
 
-func IsUserAuthorized(PostResponse postResponse, access_token string) bool {
+func IsUserAuthorized(PostResponse Post, access_token string) bool {
 	curUser, err := GetUserByAccess_token(access_token)
 	if err != nil {
 		log.Println("GetUserByAccess_token錯誤:", err)
 	}
 
-	if PostResponse.Type == "public" || PostResponse.Author == *curUser {
+	if PostResponse.Type == "public" || PostResponse.Author.Id == curUser.Id {
 		return true
 	}
 	return false
@@ -226,16 +216,8 @@ func IsUserAuthorized(PostResponse postResponse, access_token string) bool {
 
 func Publish_post(c *gin.Context, Images []string, Type string, tags []string, content, location_name string) (*Post, error) {
 	var images []Image
-	var ImagesDBref []DBRef
 	for _, url := range Images {
 		images = append(images, add_images_by_urls(url))
-	}
-	for _, image := range images {
-		tmpDBRef := DBRef{
-			Ref: "image",
-			ID:  image.ID,
-		}
-		ImagesDBref = append(ImagesDBref, tmpDBRef)
 	}
 	tokenString := c.GetHeader("Authorization")
 	author, err := GetUserByAccess_token(tokenString)
@@ -246,12 +228,9 @@ func Publish_post(c *gin.Context, Images []string, Type string, tags []string, c
 	currentTime := time.Now()
 	timeString := currentTime.Format("2006-01-02 15:04:05")
 	post := Post{
-		Id: GetNextSequence("postId"),
-		Author: DBRef{
-			Ref: "user",
-			ID:  author.ID,
-		},
-		Images:        ImagesDBref,
+		Id:            GetNextSequence("postId"),
+		Author:        *author,
+		Images:        images,
 		Like_count:    0,
 		Content:       content,
 		Type:          Type,
@@ -273,6 +252,7 @@ func add_images_by_urls(url string) Image {
 	timeString := currentTime.Format("2006-01-02 15:04:05")
 	fmt.Println("當前時間:", timeString)
 	image := Image{
+		ID:         primitive.NewObjectID(),
 		Id:         GetNextSequence("imageId"),
 		Url:        url,
 		Width:      10,
@@ -361,4 +341,35 @@ func Delete_post(c *gin.Context, post_id int) error {
 	}
 	fmt.Printf("Matched %v documents and Deleted %v documents.\n", deleteResult.DeletedCount, deleteResult.DeletedCount)
 	return err
+}
+
+func Favorite_post(c *gin.Context, post_id int) (bool, error) {
+	curPost, err := GetPostById(c, post_id)
+	if err != nil {
+		fmt.Println("查詢貼文失敗:", err)
+		return false, err
+	}
+	tokenString := c.GetHeader("Authorization")
+	curUser, err := GetUserByAccess_token(tokenString)
+	if err != nil {
+		fmt.Println("查詢user失敗:", err)
+		return false, err
+	}
+
+	exists := false
+	for i, post := range curUser.Favorite {
+		if post.Id == curPost.Id {
+			curUser.Favorite = append(curUser.Favorite[:i], curUser.Favorite[i+1:]...)
+			exists = true
+			break
+		}
+	}
+	if !exists {
+		curUser.Favorite = append(curUser.Favorite, *curPost)
+	}
+	filter := bson.M{"id": curUser.Id} // 使用 curUser.ID 作為篩選條件
+	update := bson.M{"$set": bson.M{"favorite": curUser.Favorite}}
+	collection := Mongo.Collection("user")
+	_, err = collection.UpdateOne(context.Background(), filter, update)
+	return !exists, err
 }

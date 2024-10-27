@@ -203,3 +203,32 @@ func Delete_post(c *gin.Context) {
 	})
 	return
 }
+
+func Favorite_post(c *gin.Context) {
+	postIDStr := c.Param("post_id")
+	postID, err := strconv.Atoi(postIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的 post_id"})
+		return
+	}
+	ifExist, err := models.Favorite_post(c, postID)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "收藏貼文錯誤",
+		})
+		return
+	}
+	if ifExist {
+		c.JSON(http.StatusOK, gin.H{
+			"favorite": true,
+		})
+		return
+	} else {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "",
+			"data":    "",
+		})
+	}
+}

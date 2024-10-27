@@ -6,6 +6,7 @@ import (
 	"post-platform/models"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func Login(c *gin.Context) {
@@ -110,8 +111,9 @@ func Register(c *gin.Context) {
 	var access_token string
 	var err error
 	access_token, err = helper.GenerateAccessToken(email)
-
+	var favorite []models.Post
 	user := models.User{
+		ID:            primitive.NewObjectID(),
 		Id:            models.GetNextSequence("userId"),
 		Email:         email,
 		Nickname:      nickname,
@@ -119,6 +121,7 @@ func Register(c *gin.Context) {
 		Type:          "USER",
 		Access_token:  access_token,
 		Password:      password,
+		Favorite:      favorite,
 	}
 
 	err = models.InsertUser(user)
