@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sort"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -372,4 +373,53 @@ func Favorite_post(c *gin.Context, post_id int) (bool, error) {
 	collection := Mongo.Collection("user")
 	_, err = collection.UpdateOne(context.Background(), filter, update)
 	return !exists, err
+}
+
+func GET_Favorite_post(c *gin.Context, order_by, order_type string) ([]Post, error) {
+	tokenString := c.GetHeader("Authorization")
+	if !isUserLoggedIn(tokenString) {
+		fmt.Println("登入失敗:")
+		return nil, nil
+	}
+	curUser, err := GetUserByAccess_token(tokenString)
+	if err != nil {
+		fmt.Println("GetUserByAccess_token錯誤:")
+		return nil, err
+	}
+	flag := false
+	if order_by == "asc" {
+		flag = true
+	}
+	posts, err := sortUserFavorites(curUser.Favorite, flag)
+	if err != nil {
+		fmt.Println("sortUserFavorites錯誤:")
+		return nil, err
+	}
+	return posts, err
+}
+
+func parsePostTime(post Post) (time.Time, error) {
+	return time.Parse("2006-01-02 15:04:05", post.Created_at)
+}
+
+func sortUserFavorites(userFavorites []Post, ascending bool) ([]Post, error) {
+	sort.Slice(userFavorites, func(i, j int) bool {
+		timeI, err := parsePostTime(userFavorites[i])
+		if err != nil {
+			fmt.Println("時間解析錯誤：", err)
+			return false
+		}
+		timeJ, err := parsePostTime(userFavorites[j])
+		if err != nil {
+			fmt.Println("時間解析錯誤：", err)
+			return false
+		}
+		if ascending {
+			fmt.Println("升序排列")
+			return timeI.Before(timeJ)
+		}
+		fmt.Println("降序排列")
+		return timeI.After(timeJ)
+	})
+	return userFavorites, nil
 }

@@ -27,5 +27,7 @@ func Router() *gin.Engine {
 	r.DELETE("/api/post/:post_id", service.Delete_post)
 
 	r.POST("/api/post/:post_id/favorite", service.Favorite_post)
+
+	r.GET("/api/post/favorite", service.GET_Favorite_post)
 	return r
 }

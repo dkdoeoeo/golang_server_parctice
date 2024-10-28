@@ -232,3 +232,23 @@ func Favorite_post(c *gin.Context) {
 		})
 	}
 }
+
+func GET_Favorite_post(c *gin.Context) {
+	order_by := c.PostForm("order_by")
+	order_type := c.PostForm("order_type")
+
+	posts, err := models.GET_Favorite_post(c, order_by, order_type)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "GET_Favorite_post錯誤",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    posts,
+	})
+	return
+}
