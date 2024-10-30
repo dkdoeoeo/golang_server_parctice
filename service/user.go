@@ -1,9 +1,11 @@
 package service
 
 import (
+	"log"
 	"net/http"
 	"post-platform/helper"
 	"post-platform/models"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -139,4 +141,48 @@ func Register(c *gin.Context) {
 		"data":    user,
 	})
 	return
+}
+
+func Search_user_post(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的 user_id"})
+		return
+	}
+	order_by := c.PostForm("order_by")
+	order_type := c.PostForm("order_type")
+
+	postResponses, total_count, err := models.Search_user_post(c, userID, order_by, order_type)
+	if err != nil {
+		log.Println("Search_user_post錯誤:", err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"total_count": total_count,
+			"posts":       postResponses,
+		},
+	})
+}
+
+func GET_user_profile(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的 user_id"})
+		return
+	}
+	user, err := models.GET_user_profile(c, userID)
+	if err != nil {
+		log.Println("GET_user_profile錯誤:", err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    user,
+	})
 }

@@ -37,5 +37,7 @@ func Router() *gin.Engine {
 	r.DELETE("/api/post/:post_id/comment/:comment_id", service.Delete_comment)
 
 	r.GET("/api/user/:user_id/post", service.Search_user_post)
+
+	r.GET("/api/user/:user_id/profile", service.GET_user_profile)
 	return r
 }

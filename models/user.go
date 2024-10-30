@@ -6,9 +6,11 @@ import (
 	"log"
 	"regexp"
 
+	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type User struct {
@@ -110,4 +112,88 @@ func GetUserById(user_id int) (*User, error) {
 		log.Println("id:", user_id)
 	}
 	return user, err
+}
+
+func Search_user_post(c *gin.Context, user_id int, order_by, order_type string) ([]PostResponse, int, error) {
+	var sortOrder bson.D
+	curUser, err := GetUserById(user_id)
+	if err != nil {
+		log.Println("GetUserById錯誤:", err)
+		return nil, 0, err
+	}
+	//author=user_id的post
+	filter := bson.M{"author": *curUser}
+	//設置排序
+	switch order_by {
+	case "created_at":
+		switch order_type {
+		case "asc":
+			sortOrder = bson.D{{"created_at", 1}}
+		case "desc":
+			sortOrder = bson.D{{"created_at", -1}}
+		default:
+			sortOrder = bson.D{{"created_at", -1}} // 默認降序
+		}
+	case "like_count":
+		switch order_type {
+		case "asc":
+			sortOrder = bson.D{{"like_count", 1}}
+		case "desc":
+			sortOrder = bson.D{{"like_count", -1}}
+		default:
+			sortOrder = bson.D{{"like_count", -1}} // 默認降序
+		}
+	default:
+		switch order_type {
+		case "asc":
+			sortOrder = bson.D{{"created_at", 1}}
+		case "desc":
+			sortOrder = bson.D{{"created_at", -1}}
+		default:
+			sortOrder = bson.D{{"created_at", -1}} // 默認創建時間降序
+		}
+	}
+
+	collection := Mongo.Collection("post")
+	cursor, err := collection.Find(context.Background(), filter, options.Find().SetSort(sortOrder))
+	if err != nil {
+		log.Println("查找post錯誤:", err)
+		return nil, 0, err
+	}
+	defer cursor.Close(context.Background())
+
+	var posts []Post
+	totalCount := 0
+	//將篩選出的post解碼到posts
+	for cursor.Next(context.Background()) {
+		var post Post
+		err := cursor.Decode(&post)
+		if err != nil {
+			log.Println("decoding post錯誤:", err)
+			return nil, 0, err
+		}
+		posts = append(posts, post)
+		totalCount++
+	}
+
+	var postResponses []PostResponse
+	//將posts轉成postResponses
+	for _, post := range posts {
+		tmpPostResponse := new(PostResponse)
+		tmpPostResponse, err = Convert_Post_To_postResponse(c, post)
+		if err != nil {
+			log.Println("轉換錯誤", err)
+		}
+		postResponses = append(postResponses, *tmpPostResponse)
+	}
+	return postResponses, totalCount, nil
+}
+
+func GET_user_profile(c *gin.Context, user_id int) (*User, error) {
+	curUser, err := GetUserById(user_id)
+	if err != nil {
+		log.Println("GetUserById錯誤:", err)
+		return nil, err
+	}
+	return curUser, err
 }
