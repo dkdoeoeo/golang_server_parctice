@@ -41,5 +41,11 @@ func Router() *gin.Engine {
 	r.GET("/api/user/:user_id/profile", service.GET_user_profile)
 
 	r.POST("/api/user/:user_id/profile", service.Adjust_user_profile)
+
+	r.GET("/api/user/:user_id/follow", service.GET_user_follow)
+
+	r.POST("/api/user/:user_id/follow", service.POST_user_follow)
+
+	r.DELETE("/api/user/:user_id/follow", service.Delete_user_follow)
 	return r
 }

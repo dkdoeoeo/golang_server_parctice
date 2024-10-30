@@ -216,3 +216,70 @@ func Adjust_user_profile(c *gin.Context) {
 		"data":    newUser,
 	})
 }
+
+func GET_user_follow(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的 user_id"})
+		return
+	}
+	order_by := c.PostForm("order_by")
+	order_type := c.PostForm("order_type")
+	users, total_count, err := models.GET_user_follow(c, userID, order_by, order_type)
+	if err != nil {
+		log.Println("GET_user_follow錯誤:", err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"total_count": total_count,
+			"users":       users,
+		},
+	})
+}
+
+func POST_user_follow(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的 user_id"})
+		return
+	}
+	err = models.POST_user_follow(c, userID)
+	if err != nil {
+		log.Println("POST_user_follow錯誤:", err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    "",
+	})
+}
+
+func Delete_user_follow(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的 user_id"})
+		return
+	}
+	err = models.Delete_user_follow(c, userID)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "刪除追蹤者錯誤",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    "",
+	})
+	return
+}

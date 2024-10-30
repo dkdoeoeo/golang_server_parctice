@@ -23,6 +23,7 @@ type User struct {
 	Access_token  string             `bson:"access_token"`
 	Password      string             `bson:"password"`
 	Favorite      []Post             `bson:"favorite"`
+	Follow        []User             `bson:"follow"`
 }
 
 func GetUserByEmailPassword(email, password string) (*User, error) {
@@ -251,4 +252,119 @@ func Adjust_user_profile(c *gin.Context, user_id int, nickname, profile_image st
 	}
 
 	return &updatedUser, nil
+}
+
+func GET_user_follow(c *gin.Context, user_id int, order_by, order_type string) ([]User, int, error) {
+	tokenString := c.GetHeader("Authorization")
+	if !isUserLoggedIn(tokenString) {
+		fmt.Println("登入失敗:")
+		return nil, 0, nil
+	}
+	curUser, err := GetUserByAccess_token(tokenString)
+	if err != nil {
+		fmt.Println("GetUserByAccess_token錯誤:")
+		return nil, 0, err
+	}
+	/*
+		flag := false
+		if order_by == "asc" {
+			flag = true
+		}
+		follows, err := sortUserFollows(curUser.Follow, flag)
+	*/
+	if err != nil {
+		fmt.Println("sortUserFollows錯誤:")
+		return nil, 0, err
+	}
+	return curUser.Follow, len(curUser.Follow), err
+}
+
+/*
+func sortUserFollows(userFollows []User, ascending bool) ([]User, error) {
+	sort.Slice(userFollows, func(i, j int) bool {
+		timeI, err := parsePostTime(userFollows[i])
+		if err != nil {
+			fmt.Println("時間解析錯誤：", err)
+			return false
+		}
+		timeJ, err := parsePostTime(userFollows[j])
+		if err != nil {
+			fmt.Println("時間解析錯誤：", err)
+			return false
+		}
+		if ascending {
+			fmt.Println("升序排列")
+			return timeI.Before(timeJ)
+		}
+		fmt.Println("降序排列")
+		return timeI.After(timeJ)
+	})
+	return userFollows, nil
+}
+
+
+func parsePostTime(user User) (time.Time, error) {
+	return time.Parse("2006-01-02 15:04:05", user.Created_at)
+}*/
+
+func POST_user_follow(c *gin.Context, user_id int) error {
+	tokenString := c.GetHeader("Authorization")
+	if !isUserLoggedIn(tokenString) {
+		fmt.Println("登入失敗:")
+		return nil
+	}
+	curUser, err := GetUserByAccess_token(tokenString)
+	if err != nil {
+		fmt.Println("GetUserByAccess_token錯誤:")
+		return err
+	}
+	followUser, err := GetUserById(user_id)
+	if err != nil {
+		fmt.Println("查詢追蹤使用者失敗:", err)
+		return err
+	}
+
+	exists := false
+	for _, user := range curUser.Follow {
+		if user.Id == followUser.Id {
+			exists = true
+			break
+		}
+	}
+
+	if !exists {
+		curUser.Follow = append(curUser.Follow, *followUser)
+	}
+
+	filter := bson.M{"id": curUser.Id} // 使用 curUser.ID 作為篩選條件
+	update := bson.M{"$set": bson.M{"follow": curUser.Follow}}
+	collection := Mongo.Collection("user")
+	_, err = collection.UpdateOne(context.Background(), filter, update)
+	return err
+}
+
+func Delete_user_follow(c *gin.Context, user_id int) error {
+	deleteFollowUser, err := GetUserById(user_id)
+	if err != nil {
+		fmt.Println("查詢貼文失敗:", err)
+		return err
+	}
+	tokenString := c.GetHeader("Authorization")
+	curUser, err := GetUserByAccess_token(tokenString)
+	if err != nil {
+		fmt.Println("查詢user失敗:", err)
+		return err
+	}
+
+	for i, user := range curUser.Follow {
+		if user.Id == deleteFollowUser.Id {
+			curUser.Favorite = append(curUser.Favorite[:i], curUser.Favorite[i+1:]...)
+			break
+		}
+	}
+	filter := bson.M{"id": curUser.Id} // 使用 curUser.ID 作為篩選條件
+	update := bson.M{"$set": bson.M{"follow": curUser.Follow}}
+	collection := Mongo.Collection("user")
+	_, err = collection.UpdateOne(context.Background(), filter, update)
+	return err
 }
