@@ -29,5 +29,11 @@ func Router() *gin.Engine {
 	r.POST("/api/post/:post_id/favorite", service.Favorite_post)
 
 	r.GET("/api/post/favorite", service.GET_Favorite_post)
+
+	r.GET("/api/post/:post_id/comment", service.Post_comment)
+
+	r.POST("/api/post/:post_id/comment/:comment_id", service.Adjust_post_comment)
+
+	r.DELETE("/api/post/:post_id/comment/:comment_id", service.Delete_comment)
 	return r
 }
