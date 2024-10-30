@@ -186,3 +186,33 @@ func GET_user_profile(c *gin.Context) {
 		"data":    user,
 	})
 }
+
+func Adjust_user_profile(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的 user_id"})
+		return
+	}
+	nickname := c.PostForm("nickname")
+	profile_image := c.PostForm("profile_image")
+
+	if profile_image != "" && !models.IsValidImage(profile_image) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "profile_image錯誤",
+		})
+		return
+	}
+
+	newUser, err := models.Adjust_user_profile(c, userID, nickname, profile_image)
+	if err != nil {
+		log.Println("Adjust_user_profile錯誤:", err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    newUser,
+	})
+}

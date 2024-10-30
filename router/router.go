@@ -39,5 +39,7 @@ func Router() *gin.Engine {
 	r.GET("/api/user/:user_id/post", service.Search_user_post)
 
 	r.GET("/api/user/:user_id/profile", service.GET_user_profile)
+
+	r.POST("/api/user/:user_id/profile", service.Adjust_user_profile)
 	return r
 }

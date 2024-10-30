@@ -197,3 +197,58 @@ func GET_user_profile(c *gin.Context, user_id int) (*User, error) {
 	}
 	return curUser, err
 }
+
+func Adjust_user_profile(c *gin.Context, user_id int, nickname, profile_image string) (*User, error) {
+	tmp, err := GetUserById(user_id)
+	if err != nil {
+		fmt.Println("查詢更新使用者失敗:", err)
+		return nil, err
+	}
+	tokenString := c.GetHeader("Authorization")
+	tokenString = tokenString[len("Bearer "):]
+	if tmp.Access_token != tokenString {
+		fmt.Println("非使用者本人:", err)
+		return nil, err
+	}
+
+	if nickname == "" && profile_image == "" {
+		fmt.Println("無須更新")
+		return tmp, nil
+	}
+
+	var updatedUser User
+	var updatedFields primitive.M
+	collection := Mongo.Collection("user")
+	filter := bson.M{"id": user_id}
+
+	if nickname != "" && profile_image != "" {
+		updatedFields = bson.M{
+			"nickname":      nickname,
+			"profile_image": profile_image,
+		}
+	} else if nickname != "" {
+		updatedFields = bson.M{
+			"nickname": nickname,
+		}
+	} else if profile_image != "" {
+		updatedFields = bson.M{
+			"profile_image": profile_image,
+		}
+	}
+
+	update := bson.M{"$set": updatedFields}
+	updateResult, err := collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		fmt.Println("更新使用者失敗:", err)
+		return nil, err
+	}
+	fmt.Printf("Matched %v documents and updated %v documents.\n", updateResult.MatchedCount, updateResult.ModifiedCount)
+
+	err = collection.FindOne(context.Background(), filter).Decode(&updatedUser)
+	if err != nil {
+		fmt.Println("查詢更新使用者失敗:", err)
+		return nil, err
+	}
+
+	return &updatedUser, nil
+}
