@@ -252,3 +252,28 @@ func GET_Favorite_post(c *gin.Context) {
 	})
 	return
 }
+
+func Search_user_post(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的 user_id"})
+		return
+	}
+	order_by := c.PostForm("order_by")
+	order_type := c.PostForm("order_type")
+
+	postResponses, total_count, err := models.Search_user_post(c, userID, order_by, order_type)
+	if err != nil {
+		log.Println("Return_public_post錯誤:", err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"total_count": total_count,
+			"posts":       postResponses,
+		},
+	})
+}

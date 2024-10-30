@@ -101,3 +101,13 @@ func GetUserByAccess_token(access_token string) (*User, error) {
 	}
 	return user, err
 }
+
+func GetUserById(user_id int) (*User, error) {
+	user := new(User)
+	err := Mongo.Collection("user").FindOne(context.Background(), bson.D{{"id", user_id}}).Decode(user)
+	if err != nil {
+		log.Println("Error finding user:", err)
+		log.Println("id:", user_id)
+	}
+	return user, err
+}
